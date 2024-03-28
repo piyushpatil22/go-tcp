@@ -1,12 +1,12 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"log"
 	"net"
 	"strconv"
-	"strings"
+
+	"github.com/piyushpatil22/go-tcp/chatroom"
 )
 
 func main() {
@@ -16,7 +16,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	// static server list
 
+	var servers []chatroom.Server
+	servers = append(servers, chatroom.NewChatRoom("valorant"))
+	servers = append(servers, chatroom.NewChatRoom("counter strike"))
 	fmt.Print("Server started at port 8080")
 	defer server.Close()
 	for {
@@ -26,43 +30,9 @@ func main() {
 		}
 		name := "guest" + strconv.FormatInt(int64(guest_count), 10)
 		fmt.Println(name + " user joined!")
-		client := Client{
-			name,
-			conn,
-			false,
-		}
-		go handleConn(client)
+		client := chatroom.NewClient(name, &conn)
+
+		go client.HandleConn(&servers)
 		guest_count++
 	}
-}
-
-func handleConn(client Client) {
-	reader := bufio.NewReader(client.connection)
-	if !client.hasNameSet && strings.HasPrefix(client.name, "guest") {
-		client.connection.Write([]byte("What is your name?"))
-		new_name, err := reader.ReadString('\n')
-		if err != nil {
-			client.connection.Close()
-		}
-		new_name = strings.Trim(new_name, "\n")
-		fmt.Println(client.name + " has changed name to " + new_name)
-		client.name = new_name
-		client.hasNameSet = true
-	}
-
-	for {
-		message, err := reader.ReadString('\n')
-		if err != nil {
-			fmt.Println(client.name + " disconnected")
-			client.connection.Close()
-			return
-		}
-		fmt.Println(client.name + ": " + message)
-	}
-}
-
-type Client struct {
-	name       string
-	connection net.Conn
-	hasNameSet bool
 }
